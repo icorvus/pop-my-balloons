@@ -3,6 +3,8 @@ from enum import IntEnum
 
 import pygame
 
+# Global constants
+SCREENRECT = pygame.Rect(0, 0, 800, 600)
 
 class Direction(IntEnum):
     LEFT = -1
@@ -22,7 +24,7 @@ class Player(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
         self.direction = keys[pygame.K_RIGHT] - keys[pygame.K_LEFT]
         self.rect.x += self.direction * self.speed
-
+        self.rect.clamp_ip(SCREENRECT)
 
 class Balloon(pygame.sprite.Sprite):
     def __init__(self, speed: int = 3) -> None:
@@ -44,10 +46,8 @@ class Balloon(pygame.sprite.Sprite):
 
 
 def main() -> None:
-    WINDOW_SIZE = (800, 600)
-
     pygame.init()
-    screen = pygame.display.set_mode(WINDOW_SIZE)
+    screen = pygame.display.set_mode(SCREENRECT.size)
     pygame.display.set_caption("Pop My Balloons")
     icon_surface = pygame.image.load("graphics/icon.png").convert_alpha()
     pygame.display.set_icon(icon_surface)
