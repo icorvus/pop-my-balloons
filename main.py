@@ -18,8 +18,7 @@ class Direction(IntEnum):
 
 
 class MetaPMBSprite(type):
-    """
-    Metaclass for Pop My Balloons base sprite class.
+    """Metaclass for Pop My Balloons base sprite class.
 
     It's used to create group attribute for all subclasses.
     """
@@ -45,12 +44,12 @@ class PMBSprite(pygame.sprite.Sprite, metaclass=MetaPMBSprite):
 class Player(pygame.sprite.Sprite):
     group = pygame.sprite.GroupSingle()
 
-    def __init__(self) -> None:
+    def __init__(self, spawn_pos: tuple[int, int] = (300, 500), speed: int = 3) -> None:
         super().__init__()
         self.image = pygame.image.load("graphics/idle_1.png").convert_alpha()
-        self.rect = self.image.get_rect(midbottom=(300, 500))
-        self.speed = 3
-        self.direction = Direction.LEFT
+        self.rect = self.image.get_rect(midbottom=spawn_pos)
+        self.speed = speed
+        self.direction = Direction.STATIONARY
 
     def update(self) -> None:
         keys = pygame.key.get_pressed()
@@ -62,9 +61,15 @@ class Player(pygame.sprite.Sprite):
 class Balloon(PMBSprite):
     SPAWN_EVENT = pygame.USEREVENT + 1
 
-    def __init__(self, speed: int = 3) -> None:
+    def __init__(self, speed: int = 4) -> None:
         super().__init__()
-        self.image = pygame.image.load("graphics/balloon1.png").convert_alpha()
+        self.frames = (
+            pygame.image.load("graphics/balloon1.png").convert_alpha(),
+            pygame.image.load("graphics/balloon2.png").convert_alpha(),
+            pygame.image.load("graphics/balloon3.png").convert_alpha(),
+        )
+        self.current_frame_index = 0
+        self.image = self.frames[self.current_frame_index]
         self.rect = self.image.get_rect(topleft=(random.randint(800, 1000), 10))
         self.active = False  # Have sprite appeared on the screen fully?
         self.speed = speed
@@ -75,7 +80,13 @@ class Balloon(PMBSprite):
         self.direction *= -1  # Reverse move direction
         self.rect.y += self.rect.height
 
+    def _animate(self) -> None:
+        self.current_frame_index += 0.1
+        self.current_frame_index %= len(self.frames)
+        self.image = self.frames[int(self.current_frame_index)]
+
     def update(self) -> None:
+        self._animate()
         self.rect.x += self.direction * self.speed
         if not self.active and SCREENRECT.contains(self.rect):
             self.active = True
@@ -101,9 +112,18 @@ class Arrow(PMBSprite):
 
     @classmethod
     def create(cls, spawn_coordinates: tuple[int, int]) -> Arrow | None:
-        if len(cls.group.sprites()) >= cls.MAX_ARROWS_ON_SCREEN:
-            return
-        return super().create(spawn_coordinates)
+        """Create an Arrow sprite and add it to the group, if within the limit.
+
+        The limit of max arrows on screen is defined as Arrow class variable.
+
+        Args:
+            spawn_coordinates (tuple[int, int]): (x, y) coordinates where to spawn
+
+        Returns:
+            Arrow | None: created Arrow object or None if not within the limit.
+        """
+        if len(cls.group.sprites()) < cls.MAX_ARROWS_ON_SCREEN:
+            return super().create(spawn_coordinates)
 
     def update(self) -> None:
         self.rect.y -= self.speed
