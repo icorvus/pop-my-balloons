@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import IntEnum
+from pathlib import Path
 import random
 from typing import Self
 import sys
@@ -9,6 +10,7 @@ import pygame
 
 # Global constants
 SCREENRECT = pygame.Rect(0, 0, 800, 600)
+FRAMERATE = 60
 
 
 class Direction(IntEnum):
@@ -46,16 +48,39 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self, spawn_pos: tuple[int, int] = (300, 500), speed: int = 3) -> None:
         super().__init__()
-        self.image = pygame.image.load("graphics/idle_1.png").convert_alpha()
+        self.frames = tuple(
+            pygame.image.load(file).convert_alpha()
+            for file in Path("assets/sprites/player/idle").iterdir()
+        )
+        self.running_frames = tuple(
+            pygame.image.load(file).convert_alpha()
+            for file in Path("assets/sprites/player/run").iterdir()
+        )
+        self.current_frame_index = 0
+        self.animation_speed = 0.1
+        self.image = self.frames[self.current_frame_index]
         self.rect = self.image.get_rect(midbottom=spawn_pos)
         self.speed = speed
         self.direction = Direction.STATIONARY
+
+    def _animate(self) -> None:
+        self.current_frame_index += self.animation_speed
+        if self.direction != Direction.STATIONARY:
+            self.current_frame_index %= len(self.running_frames)
+            self.image = self.running_frames[int(self.current_frame_index)]
+            if self.direction == Direction.LEFT:
+                # Flips player surface horizontally.
+                self.image = pygame.transform.flip(self.image, True, False)
+        else:
+            self.current_frame_index %= len(self.frames)
+            self.image = self.frames[int(self.current_frame_index)]
 
     def update(self) -> None:
         keys = pygame.key.get_pressed()
         self.direction = keys[pygame.K_RIGHT] - keys[pygame.K_LEFT]
         self.rect.x += self.direction * self.speed
         self.rect.clamp_ip(SCREENRECT)
+        self._animate()
 
 
 class Balloon(PMBSprite):
@@ -64,9 +89,9 @@ class Balloon(PMBSprite):
     def __init__(self, speed: int = 4) -> None:
         super().__init__()
         self.frames = (
-            pygame.image.load("graphics/balloon1.png").convert_alpha(),
-            pygame.image.load("graphics/balloon2.png").convert_alpha(),
-            pygame.image.load("graphics/balloon3.png").convert_alpha(),
+            pygame.image.load("assets/sprites/balloon/balloon_0.png").convert_alpha(),
+            pygame.image.load("assets/sprites/balloon/balloon_1.png").convert_alpha(),
+            pygame.image.load("assets/sprites/balloon/balloon_2.png").convert_alpha(),
         )
         self.current_frame_index = 0
         self.image = self.frames[self.current_frame_index]
@@ -103,7 +128,7 @@ class Arrow(PMBSprite):
 
     def __init__(self, spawn_coordinates: tuple[int, int]) -> None:
         super().__init__()
-        self.image = pygame.image.load("graphics/arrow.png").convert_alpha()
+        self.image = pygame.image.load("assets/sprites/arrow/arrow.png").convert_alpha()
         self.rect = self.image.get_rect(center=spawn_coordinates)
         self.speed = 5
 
@@ -135,7 +160,7 @@ def main() -> None:
     pygame.init()
     screen = pygame.display.set_mode(SCREENRECT.size)
     pygame.display.set_caption("Pop My Balloons")
-    icon_surface = pygame.image.load("graphics/icon.png").convert_alpha()
+    icon_surface = pygame.image.load("assets/icons/icon.png").convert_alpha()
     pygame.display.set_icon(icon_surface)
 
     game_loop(screen)
@@ -150,8 +175,8 @@ def game_loop(screen: pygame.surface.Surface) -> None:
     clock = pygame.time.Clock()
 
     # Load surfaces
-    sky_surface = pygame.image.load("graphics/sky_background.jpg").convert()
-    ground_surface = pygame.image.load("graphics/ground.png").convert()
+    sky_surface = pygame.image.load("assets/sprites/background/sky.jpg").convert()
+    ground_surface = pygame.image.load("assets/sprites/background/ground.png").convert()
 
     # Initialize Player sprite
     player_group = pygame.sprite.GroupSingle()
@@ -187,7 +212,7 @@ def game_loop(screen: pygame.surface.Surface) -> None:
             pass
 
         pygame.display.update()
-        clock.tick(60)
+        clock.tick(FRAMERATE)
 
 
 if __name__ == "__main__":
